@@ -6,23 +6,11 @@ import { router } from "./routes";
 import { authMiddleware } from "./middlewares/auth.middleware";
 import { notFoundMiddleware } from "./middlewares/not-found.middleware";
 import { errorMiddleware } from "./middlewares/error.middleware";
+import { corsOptions } from "./config/cors";
 
 const app = express();
 
-const frontendUrl = process.env.FRONTEND_URL;
-
-app.use(
-    cors({
-        origin(origin, callback) {
-            if (!origin || origin === frontendUrl) {
-                return callback(null, true);
-            }
-
-            return callback(new Error("Not allowed by CORS"));
-        },
-    })
-);
-
+app.use(cors(corsOptions));
 app.use(helmet());
 app.use(express.json());
 app.use(authMiddleware);

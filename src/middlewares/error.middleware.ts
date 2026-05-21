@@ -15,7 +15,6 @@ export const errorMiddleware: ErrorRequestHandler = (err, req, res, next) => {
     const message = appError.message ?? "Internal Server Error";
 
     return res.status(statusCode).json({
-        success: false,
         message,
     });
 };
