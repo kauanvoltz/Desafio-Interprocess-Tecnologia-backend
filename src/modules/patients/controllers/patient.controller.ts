@@ -1,14 +1,6 @@
 import { NextFunction, Request, Response } from "express";
 import { patientService } from "../services/patient.service";
-
-const getFirstOptionalString = (value: unknown): string | undefined => {
-    if (Array.isArray(value)) {
-        const first = value[0];
-        return typeof first === "string" && first.length > 0 ? first : undefined;
-    }
-
-    return typeof value === "string" && value.length > 0 ? value : undefined;
-};
+import { getFirstOptionalString } from "../../../utils/get-first-optional-string";
 
 export const patientController = {
     async list(req: Request, res: Response, next: NextFunction) {
