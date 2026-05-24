@@ -1,7 +1,7 @@
 import { prisma } from "../../../lib/prisma";
 import { normalizeCpf } from "../../../utils/cpf";
 import { HttpError } from "../../../utils/http-error";
-import { mapPatientInputToPayload, PatientResponse } from "../mappers/patient.mapper";
+import { mapPatientInputToPayload, mapPatientToResponse, PatientResponse } from "../mappers/patient.mapper";
 import { PatientFilters, PatientInput } from "../types/patient.types";
 import {
     assertPatientPayload,
@@ -62,6 +62,21 @@ const buildStatusFilter = (status: boolean | undefined) => {
 };
 
 export const patientService = {
+    async findActive(): Promise<PatientResponse[]> {
+        const rawPatients = await prisma.patient.findMany({
+            where: {
+                status: true,
+            },
+            orderBy: {
+                createdAt: "desc",
+            },
+        });
+
+        shouldThrowPatientsNotFound({ status: "true" }, rawPatients as unknown as PatientResponse[]);
+
+        return rawPatients.map((patient) => mapPatientToResponse(patient));
+    },
+
     async findAll(filters: PatientFilters): Promise<PatientResponse[]> {
         const status = parsePatientStatus(filters.status);
 
@@ -69,16 +84,16 @@ export const patientService = {
         const cpfFilter = buildCpfFilter(filters);
         const statusFilter = buildStatusFilter(status);
 
-        const patients = await prisma.patient.findMany({
+        const rawPatients = await prisma.patient.findMany({
             where: { ...(nameFilter ?? {}), ...(cpfFilter ?? {}), ...(statusFilter ?? {}), },
             orderBy: {
                 createdAt: "desc",
             },
         });
 
-        shouldThrowPatientsNotFound(filters, patients);
+        shouldThrowPatientsNotFound(filters, rawPatients as unknown as PatientResponse[]);
 
-        return patients;
+        return rawPatients.map((patient) => mapPatientToResponse(patient));
     },
 
     async findById(id: string): Promise<PatientResponse> {
@@ -90,7 +105,7 @@ export const patientService = {
             throw new HttpError(404, "Patient not found");
         }
 
-        return patient;
+        return mapPatientToResponse(patient);
     },
 
     async create(input: PatientInput): Promise<PatientResponse> {
@@ -104,7 +119,7 @@ export const patientService = {
         const existingPatient = await findCpfConflict(payload.cpf as string);
         ensureUniquePatientCpf(existingPatient, undefined);
 
-        return prisma.patient.create({
+        const created = await prisma.patient.create({
             data: {
                 name: payload.name as string,
                 birthDate: payload.birthDate as Date,
@@ -118,6 +133,8 @@ export const patientService = {
                 status: payload.status as boolean,
             },
         });
+
+        return mapPatientToResponse(created);
     },
 
     async update(id: string, input: PatientInput): Promise<PatientResponse> {
@@ -154,9 +171,11 @@ export const patientService = {
             ...(payload.status !== undefined ? { status: payload.status } : {}),
         };
 
-        return prisma.patient.update({
+        const updated = await prisma.patient.update({
             where: { id },
             data: updateData,
         });
+
+        return mapPatientToResponse(updated);
     },
 };

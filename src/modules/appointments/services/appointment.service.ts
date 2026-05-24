@@ -1,20 +1,18 @@
-import { Patient } from "@prisma/client";
 import { prisma } from "../../../lib/prisma";
 import { HttpError } from "../../../utils/http-error";
-import { mapAppointmentInputToPayload, AppointmentResponse } from "../mappers/appointment.mapper";
+import { mapAppointmentInputToPayload, AppointmentResponse, mapAppointmentToResponse } from "../mappers/appointment.mapper";
 import { AppointmentFilters, AppointmentInput } from "../types/appointment.types";
-import { ensureAppointmentDateNotInFuture, ensureRequiredAppointmentFields, parseAppointmentDate, parseAppointmentStatus, } from "../validations/appointment.validation";
+import { ensureAppointmentDateNotInFuture, ensureRequiredAppointmentFields, parseAppointmentDate, parseAppointmentStatus } from "../validations/appointment.validation";
 import { patientService } from "../../patients/services/patient.service";
 
-
-const shouldThrowAppointmentsNotFound = (filters: AppointmentFilters, appointments: AppointmentResponse[]) => {
+const shouldThrowAppointmentsNotFound = (filters: AppointmentFilters, appointmentsCount: number) => {
     const hasAnyFilter =
         filters.patientId !== undefined ||
         filters.status !== undefined ||
         filters.startDate !== undefined ||
         filters.endDate !== undefined;
 
-    if (hasAnyFilter && appointments.length === 0) {
+    if (hasAnyFilter && appointmentsCount === 0) {
         throw new HttpError(404, "Appointments not found");
     }
 };
@@ -50,9 +48,9 @@ export const appointmentService = {
         const statusWhere = buildStatusWhere(filters.status);
         const dateWhere = buildDateWhere(filters.startDate, filters.endDate);
 
-        const where = { ...(patientIdWhere ?? {}), ...(statusWhere ?? {}), ...(dateWhere ?? {}), };
+        const where = { ...(patientIdWhere ?? {}), ...(statusWhere ?? {}), ...(dateWhere ?? {}) };
 
-        const appointments = await prisma.appointment.findMany({
+        const rawAppointments = await prisma.appointment.findMany({
             where,
             orderBy: { createdAt: "desc" },
             include: {
@@ -60,9 +58,9 @@ export const appointmentService = {
             },
         });
 
-        shouldThrowAppointmentsNotFound(filters, appointments);
+        shouldThrowAppointmentsNotFound(filters, rawAppointments.length);
 
-        return appointments;
+        return rawAppointments.map(mapAppointmentToResponse);
     },
 
     async findById(id: string): Promise<AppointmentResponse> {
@@ -74,7 +72,7 @@ export const appointmentService = {
             throw new HttpError(404, "Appointment not found");
         }
 
-        return appointment;
+        return mapAppointmentToResponse(appointment);
     },
 
     async create(input: AppointmentInput): Promise<AppointmentResponse> {
@@ -92,7 +90,7 @@ export const appointmentService = {
 
         const payload = mapAppointmentInputToPayload(input);
 
-        return prisma.appointment.create({
+        const created = await prisma.appointment.create({
             data: {
                 patientId: payload.patientId!,
                 date: payload.date!,
@@ -100,6 +98,8 @@ export const appointmentService = {
                 status: payload.status!,
             },
         });
+
+        return mapAppointmentToResponse(created);
     },
 
     async update(id: string, input: AppointmentInput): Promise<AppointmentResponse> {
@@ -107,7 +107,7 @@ export const appointmentService = {
 
         const payload = mapAppointmentInputToPayload(input);
 
-        const data: { patientId?: string; date?: Date; description?: string; status?: boolean; } = {};
+        const data: { patientId?: string; date?: Date; description?: string; status?: boolean } = {};
 
         if (payload.patientId !== undefined) {
             const patient = await patientService.findById(payload.patientId);
@@ -130,10 +130,11 @@ export const appointmentService = {
             data.status = payload.status;
         }
 
-        return prisma.appointment.update({
+        const updated = await prisma.appointment.update({
             where: { id },
             data,
         });
-    },
 
+        return mapAppointmentToResponse(updated);
+    },
 };

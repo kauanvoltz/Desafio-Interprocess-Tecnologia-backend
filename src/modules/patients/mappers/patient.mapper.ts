@@ -1,8 +1,11 @@
 import { Patient } from "@prisma/client";
 import { PatientInput } from "../types/patient.types";
 import { normalizeCpf } from "../../../utils/cpf";
+import { formatBirthDateToPtDdMmYyyy, parseBirthDatePtToDate } from "../../../utils/patient-date";
 
-export type PatientResponse = Patient;
+export type PatientResponse = Omit<Patient, "birthDate"> & {
+    birthDate: string;
+};
 
 export type PatientPayload = {
     name?: string;
@@ -19,7 +22,7 @@ export type PatientPayload = {
 
 export const mapPatientInputToPayload = (input: PatientInput): PatientPayload => ({
     name: input.name?.trim(),
-    birthDate: input.birthDate ? new Date(input.birthDate) : undefined,
+    birthDate: input.birthDate ? parseBirthDatePtToDate(input.birthDate) : undefined,
     cpf: input.cpf ? normalizeCpf(input.cpf) : undefined,
     gender: input.gender?.trim(),
     cep: input.cep?.trim() || null,
@@ -29,3 +32,10 @@ export const mapPatientInputToPayload = (input: PatientInput): PatientPayload =>
     complement: input.complement?.trim() || null,
     status: input.status,
 });
+
+export const mapPatientToResponse = (patient: Patient): PatientResponse => {
+    return {
+        ...patient,
+        birthDate: formatBirthDateToPtDdMmYyyy(patient.birthDate),
+    };
+};

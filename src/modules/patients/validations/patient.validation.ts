@@ -3,7 +3,7 @@ import { normalizeCpf } from "../../../utils/cpf";
 import { PatientInput } from "../types/patient.types";
 import { PatientPayload } from "../mappers/patient.mapper";
 
-const allowedGenderValues = ["male", "female", "other"] as const;
+const allowedGenderValues = ["masculino", "feminino", "outro"] as const;
 
 export const parsePatientStatus = (status?: string) => {
     if (status === undefined) {

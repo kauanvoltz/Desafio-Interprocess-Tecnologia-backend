@@ -17,6 +17,15 @@ export const patientController = {
         }
     },
 
+    async findActive(req: Request, res: Response, next: NextFunction) {
+        try {
+            const patients = await patientService.findActive();
+            return res.status(200).json(patients);
+        } catch (error) {
+            return next(error);
+        }
+    },
+
     async findById(req: Request, res: Response, next: NextFunction) {
         try {
             const patient = await patientService.findById(getFirstOptionalString(req.params.id) as string);

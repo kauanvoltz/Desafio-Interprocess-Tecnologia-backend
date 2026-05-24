@@ -1,6 +1,10 @@
 import { Appointment } from "@prisma/client";
+import { parseAppointmentDate } from "../validations/appointment.validation";
+import { formatAppointmentDateToPtDdMmYyyyHm } from "../../../utils/appointment-date";
 
-export type AppointmentResponse = Appointment;
+export type AppointmentResponse = Omit<Appointment, "date"> & {
+    date: string;
+};
 
 export type AppointmentPayload = {
     patientId?: string;
@@ -22,7 +26,14 @@ export const mapAppointmentInputToPayload = (input: {
     status?: boolean;
 }): AppointmentPayload => ({
     patientId: input.patientId,
-    date: input.date ? new Date(input.date) : undefined,
+    date: input.date ? parseAppointmentDate(input.date) : undefined,
     description: getOptionalTrimmedString(input.description),
     status: input.status,
 });
+
+export const mapAppointmentToResponse = (appointment: Appointment): AppointmentResponse => {
+    return {
+        ...appointment,
+        date: formatAppointmentDateToPtDdMmYyyyHm(appointment.date),
+    };
+};
